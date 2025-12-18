@@ -1,6 +1,6 @@
 # WebGIS Course Assignment 2
 
-**Project Weight**: This assignment represents **0.25%** of the total TA (Teaching Assistant) evaluation.
+**Project Weight**: This assignment represents **25%** of the total TA (Teaching Assistant) evaluation.
 
 **Submission**: Submit the link to your forked repository in the VC (Virtual Classroom).
 
