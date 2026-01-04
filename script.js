@@ -1,7 +1,12 @@
-// صبر کن تا HTML کامل لود بشه!
 document.addEventListener('DOMContentLoaded', function() {
   
-  // کلید API
+  // منتظر لود کامل HTML
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const statusEl = document.getElementById('status');
+  const infoPanel = document.getElementById('infoPanel');
+  const infoContent = document.getElementById('infoContent');
+  
   const API_KEY = "web.bd581b817e37448fbd1308580a816dc6";
   
   // نقشه
@@ -14,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
     })
   });
 
-  // لایه‌ها
   const searchSource = new ol.source.Vector();
   const searchLayer = new ol.layer.Vector({source: searchSource});
   map.addLayer(searchLayer);
@@ -23,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const clickLayer = new ol.layer.Vector({source: clickSource});
   map.addLayer(clickLayer);
 
-  // استایل‌ها
   const blueStyle = new ol.style.Style({
     image: new ol.style.Circle({
       radius: 14, fill: new ol.style.Fill({color: '#1e88e5'}),
@@ -38,87 +41,80 @@ document.addEventListener('DOMContentLoaded', function() {
     })
   });
 
-  // DOM المان‌ها (حالا مطمئناً وجود دارن)
-  const searchInput = document.getElementById('searchInput');
-  const searchBtn = document.getElementById('searchBtn');
-  const statusEl = document.getElementById('status');
-  const infoPanel = document.getElementById('infoPanel');
-  const infoContent = document.getElementById('infoContent');
-
-  // تست: آیا input پیدا شد؟
-  console.log('Search input:', searchInput);
-  console.log('Search button:', searchBtn);
-
-  // ========== جستجو ==========
-  searchBtn.addEventListener('click', async function() {
+  // ✅ جستجو (تایپ + Enter کار میکنه)
+  function searchLocation() {
     const term = searchInput.value.trim();
-    if (!term) return showStatus('نام مکان بنویسید!', 'error');
+    if (!term) {
+      showStatus('❌ نام شهر بنویس!', 'error');
+      return;
+    }
     
     showStatus('🔍 جستجو...', 'loading');
     
-    // نشان + OSM
-    try {
-      // اول نشان
-      const neshanRes = await fetch(
-        `https://api.neshan.org/v2/search?term=${encodeURIComponent(term)}`,
-        { headers: { 'Api-Key': API_KEY } }
-      );
-      
-      if (neshanRes.ok) {
-        const data = await neshanRes.json();
-        if (data.items && data.items[0]) {
-          const place = data.items[0];
-          const coord = ol.proj.fromLonLat([place.location.x, place.location.y]);
-          
-          searchSource.clear();
-          const feature = new ol.Feature(new ol.geom.Point(coord));
-          feature.setStyle(blueStyle);
-          searchSource.addFeature(feature);
-          
-          map.getView().animate({center: coord, zoom: 16, duration: 1000});
-          showStatus(`✅ ${place.title}`, 'success');
-          showInfo(place.title, place.address);
-          return;
-        }
-      }
-    } catch(e) {}
-
-    // OSM فال‌بک
-    try {
-      const osmRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(term)}&limit=1`,
-        { headers: { 'User-Agent': 'WebGIS-Assignment' } }
-      );
-      
-      const osmData = await osmRes.json();
-      if (osmData[0]) {
-        const place = osmData[0];
-        const coord = ol.proj.fromLonLat([parseFloat(place.lon), parseFloat(place.lat)]);
-        
-        searchSource.clear();
-        const feature = new ol.Feature(new ol.geom.Point(coord));
-        feature.setStyle(blueStyle);
-        searchSource.addFeature(feature);
-        
-        map.getView().animate({center: coord, zoom: 14, duration: 1000});
-        showStatus(`✅ ${place.display_name.split(',')[0]}`, 'success');
-        showInfo(place.display_name.split(',')[0], place.display_name);
+    // Neshan API
+    fetch(`https://api.neshan.org/v2/search?term=${encodeURIComponent(term)}`, {
+      headers: { 'Api-Key': API_KEY }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.items?.[0]) {
+        const place = data.items[0];
+        const coord = ol.proj.fromLonLat([place.location.x, place.location.y]);
+        showLocation(coord, place.title, 'Neshan');
+        searchInput.value = '';
         return;
       }
-      
-      showStatus('❌ پیدا نشد', 'error');
-      
-    } catch(error) {
-      showStatus('❌ خطای اینترنت', 'error');
+      // OSM Fallback
+      osmSearch(term);
+    })
+    .catch(() => osmSearch(term));
+  }
+
+  // OSM جستجو
+  function osmSearch(term) {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(term)}&limit=1&countrycodes=ir`)
+    .then(res => res.json())
+    .then(data => {
+      if (data[0]) {
+        const place = data[0];
+        const coord = ol.proj.fromLonLat([parseFloat(place.lon), parseFloat(place.lat)]);
+        showLocation(coord, place.display_name.split(',')[0], 'OSM');
+        searchInput.value = '';
+      } else {
+        showStatus('❌ شهر پیدا نشد', 'error');
+      }
+    })
+    .catch(() => showStatus('❌ خطای اینترنت', 'error'));
+  }
+
+  // نمایش مکان
+  function showLocation(coord, name, source) {
+    searchSource.clear();
+    const feature = new ol.Feature(new ol.geom.Point(coord));
+    feature.setStyle(blueStyle);
+    searchSource.addFeature(feature);
+    
+    map.getView().animate({
+      center: coord,
+      zoom: source === 'Neshan' ? 16 : 12,
+      duration: 1000
+    });
+    
+    showStatus(`✅ ${name} (${source})`, 'success');
+  }
+
+  // دکمه جستجو
+  searchBtn.onclick = searchLocation;
+  
+  // Enter key - تایپ شهر!
+  searchInput.onkeypress = function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchLocation();
     }
-  });
+  };
 
-  // Enter key
-  searchInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') searchBtn.click();
-  });
-
-  // کلیک
+  // 🆕 کلیک + آب و هوا
   map.on('singleclick', async function(event) {
     const coord = ol.proj.toLonLat(event.coordinate);
     
@@ -127,21 +123,36 @@ document.addEventListener('DOMContentLoaded', function() {
     feature.setStyle(redStyle);
     clickSource.addFeature(feature);
     
+    showStatus('🌤️ بارگذاری...', 'loading');
+    
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coord[1]}&lon=${coord[0]}&zoom=18`,
-        { headers: { 'User-Agent': 'WebGIS-Assignment' } }
+      const weather = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${coord[1]}&longitude=${coord[0]}&current=temperature_2m,weathercode,is_day&timezone=Asia/Tehran`
       );
       
-      const data = await res.json();
-      showInfo('📍 آدرس', data.display_name || 'نامشخص');
+      const data = await weather.json();
+      const current = data.current;
+      const temp = Math.round(current.temperature_2m);
+      
+      const icons = {
+        0: '☀️', 1: '🌤️', 3: '☁️', 45: '🌫️', 
+        61: '🌦️', 63: '🌧️', 71: '🌨️', 95: '⛈️'
+      };
+      const icon = icons[current.weathercode] || '🌤️';
+      
+      showInfo(
+        `📍 ${coord[1].toFixed(4)}, ${coord[0].toFixed(4)}`,
+        `🌡️ ${temp}°C<br>${icon} ${current.is_day ? 'روز' : 'شب'}<br>🆓 Open-Meteo`
+      );
+      
+      showStatus(`🌡️ ${temp}°C ${icon}`, 'success');
       
     } catch(e) {
-      showInfo('❌ خطا', 'آدرس‌یابی ناموفق');
+      showStatus('❌ خطای هوا', 'error');
     }
   });
 
-  // توابع
+  // توابع نمایش
   function showStatus(msg, type='') {
     statusEl.textContent = msg;
     statusEl.style.color = type === 'error' ? '#e74c3c' : 
@@ -153,9 +164,8 @@ document.addEventListener('DOMContentLoaded', function() {
     infoPanel.classList.add('show');
   }
 
-  window.closePanel = function() {
-    infoPanel.classList.remove('show');
-  };
+  window.closePanel = () => infoPanel.classList.remove('show');
 
-  console.log('✅ همه چیز آماده - تایپ کار می‌کنه!');
+  // ✅ تست تایپ
+  console.log('✅ تایپ شهر فعال! تست: "اصفهان", "شیراز"');
 });
