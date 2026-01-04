@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGIS Assignment 2 - موبایل: 0912******</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🗺️ WebGIS Assignment 2</h1>
+    <p>موبایل: 0912******</p>
+  </div>
+
+  <div class="search-box">
+    <input id="searchInput" placeholder="جستجو: میدان آزادی، ولیعصر، انقلاب...">
+    <button id="searchBtn">🔍 جستجو در نشان</button>
+    <div id="status">✅ آماده! سرچ کنید یا کلیک کنید</div>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="infoPanel" class="info-panel">
+    <button class="close-btn" onclick="closePanel()">✕</button>
+    <div id="infoContent"></div>
+  </div>
+
+  <div class="footer">
+    OpenLayers + Neshan API | موبایل: 0912******
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
